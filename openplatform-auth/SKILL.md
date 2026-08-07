@@ -13,10 +13,10 @@ When another skill reports that Advoo OpenPlatform authorization is missing, inv
 
 1. Resolve `auth.py` to the absolute path under this skill's `scripts` directory.
 2. Select an installed Python 3 launcher: prefer `python3` on macOS and `py -3` on Windows, falling back to `python` only when it is Python 3.
-3. Retry the interrupted request through the helper with the application label supplied by the calling skill:
+3. Retry the interrupted request through the helper. The helper uses the official `Advoo Open Skills` application label:
 
    ```text
-   <python> <auth.py> request GET /api/advoo/v1/openplatform/... --app-name "Local Application"
+   <python> <auth.py> request GET /api/advoo/v1/openplatform/...
    ```
 
 4. Let Python load the credential, open browser authorization when needed, and retry a rejected local credential once. Do not duplicate this control flow in the calling skill.
@@ -44,13 +44,15 @@ Prefer structured business commands when available. They validate typed argument
 Explicit commands:
 
 ```text
-<python> <auth.py> login --app-name "Local Application"
-<python> <auth.py> ensure --app-name "Local Application"
+<python> <auth.py> login
+<python> <auth.py> ensure
 <python> <auth.py> request GET /api/advoo/v1/openplatform/...
 <python> <auth.py> logout
 ```
 
 The helper stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides the file path. The requested token expires no later than seven days after authorization.
+
+Use `Advoo Open Skills` as the authorization-page application name for every official Skill workflow.
 
 ## Safety
 

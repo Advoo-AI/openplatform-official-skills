@@ -29,6 +29,7 @@ AUTHORIZE_URL = f"{ORIGIN}/oauth/authorize"
 TOKEN_URL = f"{ORIGIN}/api/advoo/v1/openplatform/auth/oauth/token"
 OPENPLATFORM_PATH_PREFIX = "/api/advoo/v1/openplatform/"
 CLIENT_ID = "dotai-skill"
+APPLICATION_NAME = "Advoo Open Skills"
 TOKEN_ENV = "ADVOO_OPENPLATFORM_TOKEN"
 TOKEN_FILE_ENV = "ADVOO_OPENPLATFORM_TOKEN_FILE"
 CONFIRMATION_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -494,7 +495,7 @@ def upload_reference_image(token_path: Path, data: bytes, content_type: str,
                            timeout: int, login_timeout: int) -> str:
     body = json.dumps({"contentType": content_type}, separators=(",", ":")).encode("utf-8")
     status, response = authorized_request(
-        token_path, "POST", TEMP_UPLOAD_PATH, body, timeout, login_timeout, "Image Edit")
+        token_path, "POST", TEMP_UPLOAD_PATH, body, timeout, login_timeout, APPLICATION_NAME)
     result = parse_success_result(status, response, "temporary image upload initialization")
     upload_url = result.get("url")
     file_key = result.get("fileKey")
@@ -544,18 +545,18 @@ def build_parser() -> argparse.ArgumentParser:
 
     login_parser = subparsers.add_parser("login", help="authorize in a browser and save a token")
     login_parser.add_argument("--timeout", type=positive_int, default=180)
-    login_parser.add_argument("--app-name", default="Local Application")
+    login_parser.add_argument("--app-name", default=APPLICATION_NAME)
 
     ensure_parser = subparsers.add_parser("ensure", help="ensure a usable credential exists")
     ensure_parser.add_argument("--timeout", type=positive_int, default=180)
-    ensure_parser.add_argument("--app-name", default="Local Application")
+    ensure_parser.add_argument("--app-name", default=APPLICATION_NAME)
 
     request_parser = subparsers.add_parser("request", help="call an OpenPlatform API endpoint")
     request_parser.add_argument("method", choices=("GET", "POST", "PUT", "PATCH", "DELETE"))
     request_parser.add_argument("path")
     request_parser.add_argument("--timeout", type=positive_int, default=60)
     request_parser.add_argument("--login-timeout", type=positive_int, default=180)
-    request_parser.add_argument("--app-name", default="Local Application")
+    request_parser.add_argument("--app-name", default=APPLICATION_NAME)
     request_parser.add_argument("--no-login", action="store_true")
     body_group = request_parser.add_mutually_exclusive_group()
     body_group.add_argument("--json")
@@ -596,7 +597,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def clean_app_name(value: str) -> str:
-    return value.strip()[:80] or "Local Application"
+    return value.strip()[:80] or APPLICATION_NAME
 
 
 def main() -> int:
@@ -642,7 +643,7 @@ def main() -> int:
                 body = social_posts_body(args)
             return execute_api_request(
                 path, method, api_path, body, args.timeout, args.login_timeout,
-                "Social Post Query"
+                APPLICATION_NAME
             )
         if args.command == "image":
             if args.image_command == "models":
@@ -655,7 +656,7 @@ def main() -> int:
                 body = image_edit_body(args, upload_reference_images(args, path))
             return execute_api_request(
                 path, method, api_path, body, args.timeout, args.login_timeout,
-                "Image Edit"
+                APPLICATION_NAME
             )
         raise ValueError("unsupported command")
     except CommandError as error:
