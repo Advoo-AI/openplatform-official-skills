@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Authorize and call Advoo OpenPlatform without exposing access tokens."""
+"""Authenticate with and call Advoo OpenPlatform without exposing access tokens."""
 
 from __future__ import annotations
 
@@ -34,12 +34,22 @@ TOKEN_FILE_ENV = "ADVOO_OPENPLATFORM_TOKEN_FILE"
 CONFIRMATION_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 ACCESS_TOKEN_LIFETIME = timedelta(days=7)
 AUTH_FAILURE_CODES = {1005, 9997}
+SOCIAL_PLATFORMS = ("facebook", "instagram", "linkedin", "threads")
+TEMP_UPLOAD_PATH = f"{OPENPLATFORM_PATH_PREFIX}files/temp-upload-url"
+MAX_REFERENCE_IMAGES = 4
+MAX_REFERENCE_IMAGE_BYTES = 20 * 1024 * 1024
 
 
 @dataclass(frozen=True)
 class Credential:
     token: str
     source: str
+
+
+class CommandError(RuntimeError):
+    def __init__(self, message: str, exit_code: int) -> None:
+        super().__init__(message)
+        self.exit_code = exit_code
 
 
 class RejectRedirects(urllib.request.HTTPRedirectHandler):
@@ -324,6 +334,209 @@ def positive_int(value: str) -> int:
     return number
 
 
+def post_limit(value: str) -> int:
+    number = int(value)
+    if not 1 <= number <= 100:
+        raise argparse.ArgumentTypeError("must be between 1 and 100")
+    return number
+
+
+def parse_iso8601(value: str) -> datetime:
+    normalized = value.strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as error:
+        raise ValueError("since and until must be ISO-8601 timestamps") from error
+    if parsed.tzinfo is None:
+        raise ValueError("since and until must include a timezone")
+    return parsed
+
+
+def social_posts_body(args: argparse.Namespace) -> bytes:
+    since = parse_iso8601(args.since)
+    until = parse_iso8601(args.until)
+    if until <= since:
+        raise ValueError("until must be later than since")
+    if until - since > timedelta(days=366):
+        raise ValueError("social post time range must not exceed 366 days")
+    payload = {
+        "channelId": args.channel_id,
+        "since": args.since,
+        "until": args.until,
+        "limit": args.limit,
+        "cursor": args.cursor,
+    }
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def image_edit_body(args: argparse.Namespace, image_oss_keys: Optional[list[str]] = None) -> bytes:
+    prompt = sys.stdin.read() if args.prompt_stdin else args.prompt
+    prompt = prompt.strip() if isinstance(prompt, str) else ""
+    if not prompt:
+        raise ValueError("image prompt must not be empty")
+    payload = {"model": args.model, "prompt": prompt}
+    if image_oss_keys:
+        payload["imageOssKeys"] = image_oss_keys
+    if args.resolution:
+        payload["resolution"] = args.resolution
+    if args.aspect_ratio:
+        payload["aspectRatio"] = args.aspect_ratio
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def authorized_request(token_path: Path, method: str, api_path: str,
+                       body: Optional[bytes], timeout: int, login_timeout: int,
+                       app_name: str, no_login: bool = False) -> tuple[int, bytes]:
+    credential = load_credential(token_path)
+    if credential is None:
+        if no_login:
+            raise CommandError(
+                "Advoo credential is missing; browser authorization is required.", 3)
+        credential = authorize_and_save(token_path, login_timeout, clean_app_name(app_name))
+    status, response = perform_request(method, api_path, credential.token, body, timeout)
+    if not is_auth_failure(status, response):
+        return status, response
+    if credential.source == "environment":
+        raise CommandError(
+            f"The managed {TOKEN_ENV} credential is invalid or expired; update it in the runtime.",
+            4,
+        )
+    delete_saved_token(token_path)
+    if no_login:
+        raise CommandError(
+            "The saved credential is invalid or expired; browser authorization is required.", 3)
+    credential = authorize_and_save(token_path, login_timeout, clean_app_name(app_name))
+    status, response = perform_request(method, api_path, credential.token, body, timeout)
+    if is_auth_failure(status, response):
+        raise CommandError(
+            "The newly authorized credential was rejected; the request was not retried again.", 4)
+    return status, response
+
+
+def execute_api_request(token_path: Path, method: str, api_path: str,
+                        body: Optional[bytes], timeout: int, login_timeout: int,
+                        app_name: str, no_login: bool = False) -> int:
+    status, response = authorized_request(
+        token_path, method, api_path, body, timeout, login_timeout, app_name, no_login)
+    return emit_response(status, response)
+
+
+def read_limited(stream: Any, limit: int) -> bytes:
+    data = stream.read(limit + 1)
+    if len(data) > limit:
+        raise ValueError(f"reference image must not exceed {limit // (1024 * 1024)} MB")
+    if not data:
+        raise ValueError("reference image must not be empty")
+    return data
+
+
+def detect_image_content_type(data: bytes) -> str:
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "image/webp"
+    raise ValueError("reference image must be PNG, JPEG, or WebP")
+
+
+def load_reference_image(value: str, timeout: int) -> tuple[bytes, str]:
+    parsed = urllib.parse.urlsplit(value)
+    if parsed.scheme.lower() in ("http", "https"):
+        request = urllib.request.Request(
+            value,
+            headers={"Accept": "image/*", "User-Agent": "Advoo-OpenPlatform-Skill/1.0"},
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                content_length = response.headers.get("Content-Length")
+                if content_length and int(content_length) > MAX_REFERENCE_IMAGE_BYTES:
+                    raise ValueError("reference image must not exceed 20 MB")
+                data = read_limited(response, MAX_REFERENCE_IMAGE_BYTES)
+        except urllib.error.HTTPError as error:
+            raise RuntimeError(f"reference image download failed with HTTP {error.code}") from error
+        except (urllib.error.URLError, TimeoutError) as error:
+            raise RuntimeError("reference image download failed") from error
+    else:
+        if "://" in value:
+            raise ValueError("reference image URL must use http or https")
+        path = Path(value).expanduser()
+        try:
+            if path.stat().st_size > MAX_REFERENCE_IMAGE_BYTES:
+                raise ValueError("reference image must not exceed 20 MB")
+            with path.open("rb") as source:
+                data = read_limited(source, MAX_REFERENCE_IMAGE_BYTES)
+        except FileNotFoundError as error:
+            raise ValueError(f"reference image does not exist: {path}") from error
+    return data, detect_image_content_type(data)
+
+
+def parse_success_result(status: int, body: bytes, operation: str) -> dict[str, Any]:
+    if not 200 <= status < 300:
+        raise RuntimeError(f"{operation} failed with HTTP {status}")
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise RuntimeError(f"{operation} returned an invalid response") from error
+    if not isinstance(payload, dict) or payload.get("code") != 0:
+        message = payload.get("msg") if isinstance(payload, dict) else None
+        raise RuntimeError(message or f"{operation} was rejected")
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{operation} response did not contain a result")
+    return result
+
+
+def upload_reference_image(token_path: Path, data: bytes, content_type: str,
+                           timeout: int, login_timeout: int) -> str:
+    body = json.dumps({"contentType": content_type}, separators=(",", ":")).encode("utf-8")
+    status, response = authorized_request(
+        token_path, "POST", TEMP_UPLOAD_PATH, body, timeout, login_timeout, "Image Edit")
+    result = parse_success_result(status, response, "temporary image upload initialization")
+    upload_url = result.get("url")
+    file_key = result.get("fileKey")
+    if not isinstance(upload_url, str) or not isinstance(file_key, str):
+        raise RuntimeError("temporary image upload response is incomplete")
+    parsed_url = urllib.parse.urlsplit(upload_url)
+    if parsed_url.scheme.lower() != "https" or not parsed_url.netloc:
+        raise RuntimeError("temporary image upload URL is not secure")
+    request = urllib.request.Request(
+        upload_url,
+        data=data,
+        headers={"Content-Type": content_type, "Content-Length": str(len(data))},
+        method="PUT",
+    )
+    try:
+        with urllib.request.build_opener(RejectRedirects()).open(request, timeout=timeout) as uploaded:
+            if not 200 <= uploaded.status < 300:
+                raise RuntimeError(f"temporary image upload failed with HTTP {uploaded.status}")
+    except urllib.error.HTTPError as error:
+        raise RuntimeError(f"temporary image upload failed with HTTP {error.code}") from error
+    except (urllib.error.URLError, TimeoutError) as error:
+        raise RuntimeError("temporary image upload failed") from error
+    return file_key
+
+
+def upload_reference_images(args: argparse.Namespace, token_path: Path) -> list[str]:
+    values = args.image or []
+    if len(values) > MAX_REFERENCE_IMAGES:
+        raise ValueError(f"at most {MAX_REFERENCE_IMAGES} reference images are allowed")
+    keys = []
+    for value in values:
+        data, content_type = load_reference_image(value, args.timeout)
+        keys.append(upload_reference_image(
+            token_path, data, content_type, args.timeout, args.login_timeout))
+    return keys
+
+
+def add_request_controls(parser: argparse.ArgumentParser, timeout: int) -> None:
+    parser.add_argument("--timeout", type=positive_int, default=timeout)
+    parser.add_argument("--login-timeout", type=positive_int, default=180)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--token-file", type=Path, default=default_token_file())
@@ -348,6 +561,35 @@ def build_parser() -> argparse.ArgumentParser:
     body_group.add_argument("--json")
     body_group.add_argument("--json-file", type=Path)
     body_group.add_argument("--stdin", action="store_true")
+
+    social_parser = subparsers.add_parser("social", help="discover social channels or query posts")
+    social_subparsers = social_parser.add_subparsers(dest="social_command", required=True)
+    channels_parser = social_subparsers.add_parser("channels", help="list connected channels")
+    channels_parser.add_argument("--platform", choices=SOCIAL_PLATFORMS, required=True)
+    add_request_controls(channels_parser, 60)
+    posts_parser = social_subparsers.add_parser("posts", help="query posts from a connected channel")
+    posts_parser.add_argument("--platform", choices=SOCIAL_PLATFORMS, required=True)
+    posts_parser.add_argument("--channel-id", required=True)
+    posts_parser.add_argument("--since", required=True)
+    posts_parser.add_argument("--until", required=True)
+    posts_parser.add_argument("--limit", type=post_limit, default=50)
+    posts_parser.add_argument("--cursor")
+    add_request_controls(posts_parser, 60)
+
+    image_parser = subparsers.add_parser("image", help="list image models or generate an image")
+    image_subparsers = image_parser.add_subparsers(dest="image_command", required=True)
+    image_models_parser = image_subparsers.add_parser("models", help="list image models and prices")
+    add_request_controls(image_models_parser, 60)
+    image_edit_parser = image_subparsers.add_parser("edit", help="generate an image from text")
+    image_edit_parser.add_argument("--model", required=True)
+    prompt_group = image_edit_parser.add_mutually_exclusive_group(required=True)
+    prompt_group.add_argument("--prompt")
+    prompt_group.add_argument("--prompt-stdin", action="store_true")
+    image_edit_parser.add_argument("--resolution")
+    image_edit_parser.add_argument("--aspect-ratio")
+    image_edit_parser.add_argument(
+        "--image", action="append", help="local PNG/JPEG/WebP path or HTTP(S) image URL; repeat up to 4 times")
+    add_request_controls(image_edit_parser, 180)
 
     subparsers.add_parser("logout", help="delete the saved local credential")
     return parser
@@ -384,35 +626,41 @@ def main() -> int:
                 print(f"Advoo credential is available from {credential.source}.", file=sys.stderr)
             return 0
 
-        api_path = normalize_api_path(args.path)
-        body = request_body(args)
-        credential = load_credential(path)
-        if credential is None:
-            if args.no_login:
-                print("Advoo credential is missing; browser authorization is required.", file=sys.stderr)
-                return 3
-            credential = authorize_and_save(
-                path, args.login_timeout, clean_app_name(args.app_name)
+        if args.command == "request":
+            return execute_api_request(
+                path, args.method, normalize_api_path(args.path), request_body(args),
+                args.timeout, args.login_timeout, args.app_name, args.no_login
             )
-        status, response = perform_request(args.method, api_path, credential.token, body, args.timeout)
-        if not is_auth_failure(status, response):
-            return emit_response(status, response)
-        if credential.source == "environment":
-            print(f"The managed {TOKEN_ENV} credential is invalid or expired; update it in the runtime.",
-                  file=sys.stderr)
-            return 4
-        delete_saved_token(path)
-        if args.no_login:
-            print("The saved credential is invalid or expired; browser authorization is required.",
-                  file=sys.stderr)
-            return 3
-        credential = authorize_and_save(path, args.login_timeout, clean_app_name(args.app_name))
-        status, response = perform_request(args.method, api_path, credential.token, body, args.timeout)
-        if is_auth_failure(status, response):
-            print("The newly authorized credential was rejected; the request was not retried again.",
-                  file=sys.stderr)
-            return 4
-        return emit_response(status, response)
+        if args.command == "social":
+            if args.social_command == "channels":
+                method = "GET"
+                api_path = f"{OPENPLATFORM_PATH_PREFIX}social/{args.platform}/channels"
+                body = None
+            else:
+                method = "POST"
+                api_path = f"{OPENPLATFORM_PATH_PREFIX}social/{args.platform}/posts/query"
+                body = social_posts_body(args)
+            return execute_api_request(
+                path, method, api_path, body, args.timeout, args.login_timeout,
+                "Social Post Query"
+            )
+        if args.command == "image":
+            if args.image_command == "models":
+                method = "GET"
+                api_path = f"{OPENPLATFORM_PATH_PREFIX}image-edit/models"
+                body = None
+            else:
+                method = "POST"
+                api_path = f"{OPENPLATFORM_PATH_PREFIX}image-edit"
+                body = image_edit_body(args, upload_reference_images(args, path))
+            return execute_api_request(
+                path, method, api_path, body, args.timeout, args.login_timeout,
+                "Image Edit"
+            )
+        raise ValueError("unsupported command")
+    except CommandError as error:
+        print(f"Advoo OpenPlatform error: {error}", file=sys.stderr)
+        return error.exit_code
     except (OSError, ValueError, RuntimeError, json.JSONDecodeError) as error:
         print(f"Advoo OpenPlatform error: {error}", file=sys.stderr)
         return 2

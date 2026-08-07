@@ -11,12 +11,12 @@ Use the bundled Python helper for authorization and API requests. The API origin
 
 When another skill reports that Advoo OpenPlatform authorization is missing, invalid, or expired, immediately perform this workflow. Do not ask the user to manually locate or copy a token.
 
-1. Resolve `openplatform.py` to the absolute path under this skill's `scripts` directory.
+1. Resolve `auth.py` to the absolute path under this skill's `scripts` directory.
 2. Select an installed Python 3 launcher: prefer `python3` on macOS and `py -3` on Windows, falling back to `python` only when it is Python 3.
 3. Retry the interrupted request through the helper with the application label supplied by the calling skill:
 
    ```text
-   <python> <openplatform.py> request GET /api/advoo/v1/openplatform/... --app-name "Local Application"
+   <python> <auth.py> request GET /api/advoo/v1/openplatform/... --app-name "Local Application"
    ```
 
 4. Let Python load the credential, open browser authorization when needed, and retry a rejected local credential once. Do not duplicate this control flow in the calling skill.
@@ -32,13 +32,22 @@ When a managed `ADVOO_OPENPLATFORM_TOKEN` is present but rejected, browser login
 
 Use `--json-file <path>` or `--stdin` for JSON request bodies. Do not place sensitive or untrusted content directly in shell syntax. The helper writes API response bodies to standard output and diagnostics to standard error.
 
+Prefer structured business commands when available. They validate typed arguments and build request JSON internally:
+
+```text
+<python> <auth.py> social channels --platform facebook
+<python> <auth.py> social posts --platform facebook --channel-id <id> --since <start> --until <end> --limit 50
+<python> <auth.py> image models
+<python> <auth.py> image edit --model <model> --prompt <prompt> [--image <path-or-url>]...
+```
+
 Explicit commands:
 
 ```text
-<python> <openplatform.py> login --app-name "Local Application"
-<python> <openplatform.py> ensure --app-name "Local Application"
-<python> <openplatform.py> request GET /api/advoo/v1/openplatform/...
-<python> <openplatform.py> logout
+<python> <auth.py> login --app-name "Local Application"
+<python> <auth.py> ensure --app-name "Local Application"
+<python> <auth.py> request GET /api/advoo/v1/openplatform/...
+<python> <auth.py> logout
 ```
 
 The helper stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides the file path. The requested token expires no later than seven days after authorization.
