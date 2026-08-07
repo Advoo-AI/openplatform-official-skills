@@ -1,0 +1,4 @@
+interface:
+  display_name: "Social Post Query"
+  short_description: "Query connected social posts through Advoo OpenPlatform"
+  default_prompt: "Use $social-post-query to query posts from one of my connected social channels."

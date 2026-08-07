@@ -1,0 +1,4 @@
+interface:
+  display_name: "Advoo Image Edit"
+  short_description: "Generate images through the billed OpenPlatform API"
+  default_prompt: "Use $image-edit to generate an image from my prompt through Advoo OpenPlatform."

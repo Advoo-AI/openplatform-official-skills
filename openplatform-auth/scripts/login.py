@@ -27,7 +27,6 @@ ORIGIN = "https://www.advoo.ai"
 AUTHORIZE_URL = f"{ORIGIN}/oauth/authorize"
 TOKEN_URL = f"{ORIGIN}/api/advoo/v1/openplatform/auth/oauth/token"
 CLIENT_ID = "dotai-skill"
-APP_NAME = "Social Post Query"
 CONFIRMATION_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 ACCESS_TOKEN_LIFETIME = timedelta(days=7)
 
@@ -90,7 +89,7 @@ def exchange_code(code: str, verifier: str, redirect_uri: str) -> str:
     return token
 
 
-def login(timeout_seconds: int) -> str:
+def login(timeout_seconds: int, app_name: str) -> str:
     verifier, challenge = pkce_pair()
     state = base64url(secrets.token_bytes(32))
     confirmation_code = "".join(
@@ -141,7 +140,7 @@ def login(timeout_seconds: int) -> str:
             "code_challenge": challenge,
             "code_challenge_method": "S256",
             "confirmation_code": confirmation_code,
-            "app_name": APP_NAME,
+            "app_name": app_name,
             "expireAt": expire_at,
         }
     )
@@ -183,12 +182,15 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--token-file", type=Path, required=True)
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument("--app-name", default="Local Application")
     args = parser.parse_args()
     if args.timeout <= 0:
         parser.error("--timeout must be positive")
 
+    app_name = args.app_name.strip()[:80] or "Local Application"
+
     try:
-        token = login(args.timeout)
+        token = login(args.timeout, app_name)
         write_token(args.token_file, token)
         return 0
     except Exception as error:

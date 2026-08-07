@@ -58,10 +58,10 @@ For LinkedIn, an intermediate page can contain no matching items while `hasMore`
 
 ## Authentication recovery
 
-Treat these conditions as requiring one browser login and one retry:
+Treat these conditions as requiring `$openplatform-auth` and one retry:
 
 - `ADVOO_OPENPLATFORM_TOKEN` is absent or empty.
 - HTTP `401`.
 - DotAI response code `1005` or `9997`.
 
-Do not treat third-party channel authorization failures as an OpenPlatform login failure. Report that the selected social channel must be reconnected instead of repeating OpenPlatform login.
+Do not treat third-party channel authorization failures or an empty channel list as an OpenPlatform login failure. Tell the user to sign in to Advoo and reconnect the selected social account in the publishing-channel settings.
