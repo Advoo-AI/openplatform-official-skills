@@ -1,5 +1,5 @@
 ---
-name: openplatform-auth
+name: skill-auth
 description: Authorize Advoo OpenPlatform through a cross-platform Python helper using browser-based PKCE. Use this skill whenever an agent or skill encounters or reports “Advoo OpenPlatform 授权无效”, or when OpenPlatform authorization is missing, invalid, or expired.
 ---
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Auth"
+  short_description: "Authorize API access for official Advoo Skills"
+  default_prompt: "Use $skill-auth to authorize Advoo OpenPlatform and retry the interrupted API request."

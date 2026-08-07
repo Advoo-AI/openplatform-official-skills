@@ -1,4 +1,0 @@
-interface:
-  display_name: "Advoo OpenPlatform Auth"
-  short_description: "Repair missing or invalid OpenPlatform authorization"
-  default_prompt: "Use $openplatform-auth to authorize Advoo OpenPlatform and retry the interrupted API request."

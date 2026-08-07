@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-"""Authenticate with and call Advoo OpenPlatform without exposing access tokens."""
+"""Authorize official Advoo Skills and call APIs without exposing access tokens."""
 
 from __future__ import annotations
 
