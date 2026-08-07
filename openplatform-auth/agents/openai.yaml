@@ -1,4 +1,4 @@
 interface:
   display_name: "Advoo OpenPlatform Auth"
-  short_description: "Authorize and load an Advoo OpenPlatform token"
-  default_prompt: "Use $openplatform-auth to authorize this session for Advoo OpenPlatform API access."
+  short_description: "Repair missing or invalid OpenPlatform authorization"
+  default_prompt: "Use $openplatform-auth to authorize Advoo OpenPlatform and retry the interrupted API request."

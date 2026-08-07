@@ -1,43 +1,51 @@
 ---
 name: openplatform-auth
-description: Load, obtain, or refresh an Advoo OpenPlatform access token through the browser-based PKCE flow. Use when another Advoo OpenPlatform skill needs ADVOO_OPENPLATFORM_TOKEN, when an API call returns HTTP 401, or when the current OpenPlatform token is missing or expired.
+description: Authorize Advoo OpenPlatform through a cross-platform Python helper using browser-based PKCE. Use this skill whenever an agent or skill encounters or reports “Advoo OpenPlatform 授权无效”, or when OpenPlatform authorization is missing, invalid, or expired.
 ---
 
 # OpenPlatform Auth
 
-Manage the shared `ADVOO_OPENPLATFORM_TOKEN` used by Advoo OpenPlatform skills. The API origin is fixed to `https://www.advoo.ai`.
+Use the bundled Python helper for authorization and API requests. The API origin is fixed to `https://www.advoo.ai`.
 
 ## Workflow
 
-1. Keep a non-empty environment variable supplied by the runtime; it takes precedence over local credentials.
-2. Resolve `advoo_auth_skill_dir` to the absolute directory containing this `SKILL.md`. Otherwise, load the saved local credential by sourcing this skill's helper:
+When another skill reports that Advoo OpenPlatform authorization is missing, invalid, or expired, immediately perform this workflow. Do not ask the user to manually locate or copy a token.
 
-   ```bash
-   source "${advoo_auth_skill_dir}/scripts/login.sh" --load-only || true
+1. Resolve `openplatform.py` to the absolute path under this skill's `scripts` directory.
+2. Select an installed Python 3 launcher: prefer `python3` on macOS and `py -3` on Windows, falling back to `python` only when it is Python 3.
+3. Retry the interrupted request through the helper with the application label supplied by the calling skill:
+
+   ```text
+   <python> <openplatform.py> request GET /api/advoo/v1/openplatform/... --app-name "Local Application"
    ```
 
-3. If `ADVOO_OPENPLATFORM_TOKEN` is now non-empty, return control to the calling skill.
-4. If interactive browser callbacks are unavailable and the runtime centrally manages credentials, report that the managed token is missing or invalid. Do not start a local callback server.
-5. For an interactive local session, set a short application label when the calling skill supplied one, then source the helper in the same shell session:
+4. Let Python load the credential, open browser authorization when needed, and retry a rejected local credential once. Do not duplicate this control flow in the calling skill.
+5. When authorization starts, immediately show the helper's exact `Terminal confirmation code: XXXX` value to the user and tell them to enter it on the Advoo authorization page. Keep the process running for the callback.
 
-   ```bash
-   export ADVOO_OPENPLATFORM_APP_NAME="${ADVOO_OPENPLATFORM_APP_NAME:-Local Application}"
-   source "${advoo_auth_skill_dir}/scripts/login.sh"
-   ```
+The helper resolves credentials in this order:
 
-6. Immediately show the helper's exact `Terminal confirmation code: XXXX` value to the user and tell them to enter it on the Advoo authorization page. Keep the process running for the callback.
-7. After authorization, retry the interrupted API request once. Do not loop on another authorization failure.
+   - Non-empty `ADVOO_OPENPLATFORM_TOKEN` environment variable.
+   - The OS-specific local token file.
+   - Interactive browser authorization when neither exists.
 
-On HTTP 401, first run `unset ADVOO_OPENPLATFORM_TOKEN`, then perform the interactive flow so a rejected environment value is not reused.
+When a managed `ADVOO_OPENPLATFORM_TOKEN` is present but rejected, browser login cannot override it. Tell the user to update or remove that environment variable in the runtime instead of repeatedly opening authorization.
 
-Shell environment changes do not cross process boundaries. Run the subsequent API request in the same shell, or source the helper with `--load-only` again at the start of each new shell command.
+Use `--json-file <path>` or `--stdin` for JSON request bodies. Do not place sensitive or untrusted content directly in shell syntax. The helper writes API response bodies to standard output and diagnostics to standard error.
 
-The helper opens the cloud authorization page, completes PKCE on a random `127.0.0.1` port, stores the token at `${ADVOO_OPENPLATFORM_TOKEN_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/advoo/openplatform/token}` with user-only permissions, and exports it into the current shell. The requested token expires no later than seven days after authorization.
+Explicit commands:
+
+```text
+<python> <openplatform.py> login --app-name "Local Application"
+<python> <openplatform.py> ensure --app-name "Local Application"
+<python> <openplatform.py> request GET /api/advoo/v1/openplatform/...
+<python> <openplatform.py> logout
+```
+
+The helper stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides the file path. The requested token expires no later than seven days after authorization.
 
 ## Safety
 
-- Never print, inspect, decode, summarize, or log the JWT.
+- Never print, inspect, decode, summarize, or log the JWT or token file contents.
 - The four-character terminal confirmation code is short-lived and may be shown to the user; it is not the JWT.
-- Never use shell tracing while loading or sending the token.
 - Never place the token in a URL, request body, command argument, or committed file.
-- Use the token only as `Authorization: Bearer ${ADVOO_OPENPLATFORM_TOKEN}` for `https://www.advoo.ai/api/advoo/v1/openplatform/` endpoints.
+- Do not bypass the helper to call a different origin or a path outside `/api/advoo/v1/openplatform/`.

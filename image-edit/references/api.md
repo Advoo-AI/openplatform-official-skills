@@ -7,8 +7,6 @@
 | `GET` | `/api/advoo/v1/openplatform/image-edit/models` | List supported models and current credit prices |
 | `POST` | `/api/advoo/v1/openplatform/image-edit` | Generate one image from a text prompt |
 
-Both endpoints require `Authorization: Bearer ${ADVOO_OPENPLATFORM_TOKEN}`.
-
 ## Request
 
 | Field | Required | Meaning |
@@ -44,9 +42,8 @@ The current OpenPlatform contract produces one image and does not accept referen
 ## Billing and errors
 
 - The backend calculates the price from the selected model and effective resolution.
-- Credits are consumed through the authenticated Advoo account's existing billing system.
+- Credits are consumed through the Advoo user's existing billing system.
 - Model generation or result-URL signing failures trigger the existing credit rollback path.
 - Insufficient credits must be reported to the user as an Advoo balance issue; do not retry with another billed model automatically.
-- HTTP 401 means the OpenPlatform token is missing or invalid. Invoke `$openplatform-auth` and retry once.
 - Other 4xx responses indicate request or account problems. Correct the request or ask the user for direction.
 - Do not automatically retry 5xx or timeout responses because the request may have reached the billable operation.

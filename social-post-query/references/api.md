@@ -24,7 +24,7 @@ List the current user's bound channels with `GET /api/advoo/v1/openplatform/soci
 }
 ```
 
-The channel list never returns platform access tokens. Query posts with `POST /api/advoo/v1/openplatform/social/{platform}/posts/query`.
+Query posts with `POST /api/advoo/v1/openplatform/social/{platform}/posts/query`.
 
 ## Request fields
 
@@ -55,13 +55,3 @@ The maximum time span is 366 days.
 Items preserve each platform's official fields. Do not assume one normalized post schema.
 
 For LinkedIn, an intermediate page can contain no matching items while `hasMore` remains true. Continue with `nextCursor` until `hasMore` is false or the user-requested limit is reached.
-
-## Authentication recovery
-
-Treat these conditions as requiring `$openplatform-auth` and one retry:
-
-- `ADVOO_OPENPLATFORM_TOKEN` is absent or empty.
-- HTTP `401`.
-- DotAI response code `1005` or `9997`.
-
-Do not treat third-party channel authorization failures or an empty channel list as an OpenPlatform login failure. Tell the user to sign in to Advoo and reconnect the selected social account in the publishing-channel settings.
