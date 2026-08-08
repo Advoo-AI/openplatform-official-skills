@@ -1,62 +1,47 @@
 ---
 name: skill-auth
-description: Authorize Advoo OpenPlatform through a cross-platform Python helper using browser-based PKCE. Use this skill whenever an agent or skill encounters or reports “Advoo OpenPlatform 授权无效”, or when OpenPlatform authorization is missing, invalid, or expired.
+description: Authorize Advoo OpenPlatform through browser-based PKCE after another official Skill reports the exact message “Advoo OpenPlatform 授权无效”. Use only for missing, rejected, or expired OpenPlatform credentials, then retry the interrupted operation once.
 ---
 
-# OpenPlatform Auth
+# OpenPlatform Authorization
 
-Use the bundled Python helper for authorization and API requests. The API origin is fixed to `https://open.advoo.ai`; interactive authorization uses the official page at `https://www.advoo.ai/oauth/authorize`.
+Use this Skill only after another official Skill returns:
+
+```text
+Advoo OpenPlatform 授权无效
+```
 
 ## Workflow
 
-When another skill reports that Advoo OpenPlatform authorization is missing, invalid, or expired, immediately perform this workflow. Do not ask the user to manually locate or copy a token.
-
-1. Resolve `auth.py` to the absolute path under this skill's `scripts` directory.
-2. Select an installed Python 3 launcher: prefer `python3` on macOS and `py -3` on Windows, falling back to `python` only when it is Python 3.
-3. Retry the interrupted request through the helper. The helper uses the official `Advoo Open Skills` application label:
+1. Preserve the interrupted command and its arguments.
+2. Resolve this Skill's own `scripts/auth.py` file.
+3. Select Python 3: use `python3` on macOS and `py -3` on Windows.
+4. Start authorization:
 
    ```text
-   <python> <auth.py> request GET /v1/...
+   <python> <auth.py> login
    ```
 
-4. Let Python load the credential, open browser authorization when needed, and retry a rejected local credential once. Do not duplicate this control flow in the calling skill.
-5. When authorization starts, immediately show the helper's exact `Terminal confirmation code: XXXX` value to the user and tell them to enter it on the Advoo authorization page. Keep the process running for the callback.
+5. Immediately show the exact `Terminal confirmation code: XXXX` value to the user and tell them to enter it on the Advoo page. Keep the process running for the localhost callback.
+6. After authorization succeeds, retry the preserved business command exactly once.
 
-The helper resolves credentials in this order:
+The authorization page uses the application name `Advoo Open Skills`. The requested credential expires no later than seven days after authorization.
 
-   - Non-empty `ADVOO_OPENPLATFORM_TOKEN` environment variable.
-   - The OS-specific local token file.
-   - Interactive browser authorization when neither exists.
+The script stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides this location.
 
-When a managed `ADVOO_OPENPLATFORM_TOKEN` is present but rejected, browser login cannot override it. Tell the user to update or remove that environment variable in the runtime instead of repeatedly opening authorization.
+When `ADVOO_OPENPLATFORM_TOKEN` is set, it is managed by the runtime and takes precedence over the local file. Do not start repeated browser logins; tell the user that the runtime credential must be updated or removed.
 
-Use `--json-file <path>` or `--stdin` for JSON request bodies. Do not place sensitive or untrusted content directly in shell syntax. The helper writes API response bodies to standard output and diagnostics to standard error.
-
-Prefer structured business commands when available. They validate typed arguments and build request JSON internally:
-
-```text
-<python> <auth.py> social channels --platform facebook
-<python> <auth.py> social posts --platform facebook --channel-id <id> --since <start> --until <end> --limit 50
-<python> <auth.py> image models
-<python> <auth.py> image edit --model <model> --prompt <prompt> [--image <path-or-url>]...
-```
-
-Explicit commands:
+## Commands
 
 ```text
 <python> <auth.py> login
-<python> <auth.py> ensure
-<python> <auth.py> request GET /v1/...
 <python> <auth.py> logout
+<python> <auth.py> path
 ```
-
-The helper stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides the file path. The requested token expires no later than seven days after authorization.
-
-Use `Advoo Open Skills` as the authorization-page application name for every official Skill workflow.
 
 ## Safety
 
 - Never print, inspect, decode, summarize, or log the JWT or token file contents.
-- The four-character terminal confirmation code is short-lived and may be shown to the user; it is not the JWT.
-- Never place the token in a URL, request body, command argument, or committed file.
-- Do not bypass the helper to call a different origin or a path outside `/v1/`.
+- The four-character terminal confirmation code is short-lived and may be shown to the user.
+- Never place the Token in a URL, request body, command argument, or committed file.
+- Do not use this Skill for ordinary API calls.
