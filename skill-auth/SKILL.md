@@ -5,7 +5,7 @@ description: Authorize Advoo OpenPlatform through a cross-platform Python helper
 
 # OpenPlatform Auth
 
-Use the bundled Python helper for authorization and API requests. The API origin is fixed to `https://www.advoo.ai`.
+Use the bundled Python helper for authorization and API requests. The API origin is fixed to `https://open.advoo.ai`; interactive authorization uses the official page at `https://www.advoo.ai/oauth/authorize`.
 
 ## Workflow
 
@@ -16,7 +16,7 @@ When another skill reports that Advoo OpenPlatform authorization is missing, inv
 3. Retry the interrupted request through the helper. The helper uses the official `Advoo Open Skills` application label:
 
    ```text
-   <python> <auth.py> request GET /api/advoo/v1/openplatform/...
+   <python> <auth.py> request GET /v1/...
    ```
 
 4. Let Python load the credential, open browser authorization when needed, and retry a rejected local credential once. Do not duplicate this control flow in the calling skill.
@@ -46,7 +46,7 @@ Explicit commands:
 ```text
 <python> <auth.py> login
 <python> <auth.py> ensure
-<python> <auth.py> request GET /api/advoo/v1/openplatform/...
+<python> <auth.py> request GET /v1/...
 <python> <auth.py> logout
 ```
 
@@ -59,4 +59,4 @@ Use `Advoo Open Skills` as the authorization-page application name for every off
 - Never print, inspect, decode, summarize, or log the JWT or token file contents.
 - The four-character terminal confirmation code is short-lived and may be shown to the user; it is not the JWT.
 - Never place the token in a URL, request body, command argument, or committed file.
-- Do not bypass the helper to call a different origin or a path outside `/api/advoo/v1/openplatform/`.
+- Do not bypass the helper to call a different origin or a path outside `/v1/`.

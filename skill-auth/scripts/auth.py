@@ -24,10 +24,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-ORIGIN = "https://www.advoo.ai"
-AUTHORIZE_URL = f"{ORIGIN}/oauth/authorize"
-TOKEN_URL = f"{ORIGIN}/api/advoo/v1/openplatform/auth/oauth/token"
-OPENPLATFORM_PATH_PREFIX = "/api/advoo/v1/openplatform/"
+ORIGIN = "https://open.advoo.ai"
+AUTHORIZE_URL = "https://www.advoo.ai/oauth/authorize"
+TOKEN_URL = f"{ORIGIN}/oauth/token"
+OPENPLATFORM_PATH_PREFIX = "/v1/"
 CLIENT_ID = "dotai-skill"
 APPLICATION_NAME = "Advoo Open Skills"
 TOKEN_ENV = "ADVOO_OPENPLATFORM_TOKEN"

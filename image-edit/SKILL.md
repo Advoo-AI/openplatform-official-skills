@@ -5,7 +5,7 @@ description: Generate or edit an image through the billed Advoo OpenPlatform ima
 
 # Image Edit
 
-Generate or edit one image with the shared cross-platform `auth.py` client. The API origin is fixed to `https://www.advoo.ai`; each successful request consumes the Advoo user's credits.
+Generate or edit one image with the shared cross-platform `auth.py` client. The API origin is fixed to `https://open.advoo.ai`; each successful request consumes the Advoo user's credits.
 
 ## Workflow
 

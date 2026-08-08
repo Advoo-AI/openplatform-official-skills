@@ -5,7 +5,7 @@ description: Discover the current user's connected Facebook, Instagram, LinkedIn
 
 # Social Post Query
 
-Query social posts with the shared cross-platform `auth.py` client. The API origin is fixed to `https://www.advoo.ai`.
+Query social posts with the shared cross-platform `auth.py` client. The API origin is fixed to `https://open.advoo.ai`.
 
 ## Workflow
 
