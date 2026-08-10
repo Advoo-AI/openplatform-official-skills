@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 
-ORIGIN = "https://open.advoo.ai"
+DEFAULT_BASE_URL = "https://open.advoo.ai"
+BASE_URL_ENV = "ADVOO_OPENPLATFORM_BASE_URL"
+ORIGIN = os.environ.get(BASE_URL_ENV, "").strip().rstrip("/") or DEFAULT_BASE_URL
 TOKEN_ENV = "ADVOO_OPENPLATFORM_TOKEN"
 TOKEN_FILE_ENV = "ADVOO_OPENPLATFORM_TOKEN_FILE"
 AUTH_INVALID = "Advoo OpenPlatform 授权无效"

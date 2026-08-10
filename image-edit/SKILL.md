@@ -5,7 +5,7 @@ description: Generate or edit one image through the billed Advoo OpenPlatform AP
 
 # Image Edit
 
-Use this Skill's own `scripts/image_edit.py`. It is self-contained and calls `https://open.advoo.ai` with an existing environment or local-file credential.
+Use this Skill's own `scripts/image_edit.py`. It is self-contained and calls `ADVOO_OPENPLATFORM_BASE_URL` when that environment variable is non-empty, otherwise `https://open.advoo.ai`, with an existing environment or local-file credential.
 
 ## Workflow
 

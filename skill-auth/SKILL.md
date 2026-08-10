@@ -27,6 +27,8 @@ Advoo OpenPlatform 授权无效
 
 The authorization page uses the application name `Advoo Open Skills`. The requested credential expires no later than seven days after authorization.
 
+The token exchange uses `ADVOO_OPENPLATFORM_BASE_URL` when that environment variable is non-empty, otherwise `https://open.advoo.ai`.
+
 The script stores local credentials at `~/Library/Application Support/Advoo/OpenPlatform/token.json` on macOS and `%LOCALAPPDATA%\Advoo\OpenPlatform\token.json` on Windows. `ADVOO_OPENPLATFORM_TOKEN_FILE` overrides this location.
 
 When `ADVOO_OPENPLATFORM_TOKEN` is set, it is managed by the runtime and takes precedence over the local file. Do not start repeated browser logins; tell the user that the runtime credential must be updated or removed.

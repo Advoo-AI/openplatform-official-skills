@@ -23,7 +23,9 @@ from pathlib import Path
 from typing import Any
 
 
-ORIGIN = "https://open.advoo.ai"
+DEFAULT_BASE_URL = "https://open.advoo.ai"
+BASE_URL_ENV = "ADVOO_OPENPLATFORM_BASE_URL"
+ORIGIN = os.environ.get(BASE_URL_ENV, "").strip().rstrip("/") or DEFAULT_BASE_URL
 AUTHORIZE_URL = "https://www.advoo.ai/oauth/authorize"
 TOKEN_URL = f"{ORIGIN}/oauth/token"
 CLIENT_ID = "dotai-skill"
