@@ -1,0 +1,4 @@
+interface:
+  display_name: "Email Send"
+  short_description: "Send email through Advoo OpenPlatform with attachments"
+  default_prompt: "Use $email-send to send an email to my verified Advoo recipients."
