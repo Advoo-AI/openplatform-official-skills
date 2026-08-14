@@ -16,7 +16,7 @@ Use this Skill's own `scripts/email_send.py`. It calls `ADVOO_OPENPLATFORM_BASE_
    <python> <email_send.py> recipients
    ```
 
-3. Use only email addresses returned by that command. If a requested address is absent, tell the user to add and verify it in Advoo first.
+3. Use only email addresses returned by that command. If a requested address is absent, tell the user to go to the Advoo platform, bind that recipient email address, and complete email verification before trying again. Never bypass recipient binding or attempt the send anyway.
 4. Confirm the recipients, subject, body format, and attachment paths with the user's request. Do not silently change plain text into HTML.
 5. Send once. Repeat `--to` for group email and `--attachment` for multiple files:
 
