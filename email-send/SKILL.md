@@ -29,6 +29,12 @@ Use this Skill's own `scripts/email_send.py`. It calls `ADVOO_OPENPLATFORM_BASE_
    <python> <email_send.py> send --to recipient@example.com --subject "Subject" --content-file ./message.html --content-type text/html --attachment ./report.pdf
    ```
 
+   Choose the body format deliberately:
+
+   - Use `text/plain` for unformatted messages. Do not put raw Markdown in the body; email clients do not reliably render Markdown and will usually show its syntax literally.
+   - Use `text/html` when formatting is needed, and convert any Markdown source to HTML before sending. Use simple email-compatible HTML with inline styles; use `<p>`, `<br>`, and list elements for layout because source newlines alone do not create HTML line breaks. Do not use scripts, forms, or external stylesheets.
+   - Keep the message understandable if remote images are blocked, and attach files that recipients must be able to access.
+
 5. Report the API result. Never retry a send automatically, including after timeouts, because delivery may already have occurred.
 
 If the script exits with code `3` and prints exactly `Advoo OpenPlatform 授权无效`, preserve that message and the interrupted command. Do not open a browser or manipulate credentials from this Skill.
