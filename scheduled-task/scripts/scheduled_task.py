@@ -133,20 +133,20 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     if args.command == "employees":
-        result = request(args.token_file, "GET", "/v1/openplatform/employees")
+        result = request(args.token_file, "GET", "/v1/employees")
     elif args.command == "list":
         query = urllib.parse.urlencode({"page": args.page, "pageSize": args.page_size})
-        result = request(args.token_file, "GET", f"/v1/openplatform/tasks?{query}")
+        result = request(args.token_file, "GET", f"/v1/tasks?{query}")
     elif args.command == "create":
         if args.schedule == "recurring" and not args.interval:
             raise ValueError("--interval is required for recurring tasks")
-        result = request(args.token_file, "POST", "/v1/openplatform/tasks", task_payload(args))
+        result = request(args.token_file, "POST", "/v1/tasks", task_payload(args))
     elif args.command == "update":
-        result = request(args.token_file, "PUT", f"/v1/openplatform/tasks/{urllib.parse.quote(args.task_id, safe='')}", task_payload(args, True))
+        result = request(args.token_file, "PUT", f"/v1/tasks/{urllib.parse.quote(args.task_id, safe='')}", task_payload(args, True))
     else:
         suffix = "" if args.command == "delete" else f"/{args.command}"
         method = "DELETE" if args.command == "delete" else "POST"
-        result = request(args.token_file, method, f"/v1/openplatform/tasks/{urllib.parse.quote(args.task_id, safe='')}{suffix}")
+        result = request(args.token_file, method, f"/v1/tasks/{urllib.parse.quote(args.task_id, safe='')}{suffix}")
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 
