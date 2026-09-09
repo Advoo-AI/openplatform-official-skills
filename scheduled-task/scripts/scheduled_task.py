@@ -93,6 +93,7 @@ def task_payload(args: argparse.Namespace, partial: bool = False) -> dict[str, A
         "prompt": getattr(args, "prompt", None), "scheduleType": getattr(args, "schedule", None),
         "runAt": getattr(args, "run_at", None), "intervalType": getattr(args, "interval", None),
         "endAt": getattr(args, "end_at", None), "timezone": getattr(args, "timezone", None),
+        "project": getattr(args, "project", None), "projectEntryId": getattr(args, "project_entry_id", None),
     }
     if not partial:
         return {key: value for key, value in values.items() if value is not None}
@@ -116,6 +117,8 @@ def build_parser() -> argparse.ArgumentParser:
     create.add_argument("--interval", choices=("12h", "24h", "weekly"))
     create.add_argument("--end-at")
     create.add_argument("--timezone", required=True)
+    create.add_argument("--project", default="")
+    create.add_argument("--project-entry-id", default="")
     update = commands.add_parser("update", help="update a scheduled task")
     update.add_argument("task_id")
     update.add_argument("--name")
@@ -124,6 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
     update.add_argument("--interval", choices=("12h", "24h", "weekly"))
     update.add_argument("--end-at")
     update.add_argument("--timezone")
+    update.add_argument("--project")
+    update.add_argument("--project-entry-id")
     for name in ("pause", "resume", "delete"):
         command = commands.add_parser(name, help=f"{name} a scheduled task")
         command.add_argument("task_id")

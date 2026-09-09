@@ -23,10 +23,11 @@ Never guess an employee ID.
 2. Create a one-time reminder or recurring task:
 
 ```text
-<python> <scheduled_task.py> create --employee-id <id> --name "Follow up" --prompt "Check the campaign and report changes" --schedule once --run-at "2026-09-10T09:00:00+08:00" --timezone "Asia/Hong_Kong"
+<python> <scheduled_task.py> create --employee-id <id> --name "Follow up" --prompt "Check the campaign and report changes" --schedule once --run-at "2026-09-10T09:00:00+08:00" --timezone "Asia/Hong_Kong" --project "/personal/Campaign"
 ```
 
 For recurring work, add `--interval 12h`, `24h`, or `weekly`; `--end-at` is optional.
+Use the user's selected project path with `--project`. Use `--project ""` when no project is selected; the task then runs in the temporary workspace.
 3. Use `list`, `update`, `pause`, `resume`, or `delete` to manage tasks. Run `<python> <scheduled_task.py> <command> --help` for exact arguments.
 4. Report the returned task ID and next run time. Do not claim the future work has already completed.
 
