@@ -1,0 +1,4 @@
+interface:
+  display_name: "定时任务与闹钟"
+  short_description: "让数字员工按指定时间执行任务、提醒事项并交付结果"
+  default_prompt: "Use $scheduled-task to create a reminder for me."
